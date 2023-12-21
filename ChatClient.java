@@ -12,10 +12,13 @@ public class ChatClient {
     JFrame frame = new JFrame("Chat Client");
     private JTextField chatBox = new JTextField();
     private JTextArea chatArea = new JTextArea();
+
     // --- Fim das variáveis relacionadas coma interface gráfica
 
     // Se for necessário adicionar variáveis ao objecto ChatClient, devem
     // ser colocadas aqui
+    private String DNSName;
+    private int port;
 
 
 
@@ -46,7 +49,7 @@ public class ChatClient {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    newMessage(chatBox.getText());
+                    run(false);
                 } catch (IOException ex) {
                 } finally {
                     chatBox.setText("");
@@ -62,7 +65,8 @@ public class ChatClient {
 
         // Se for necessário adicionar código de inicialização ao
         // construtor, deve ser colocado aqui
-
+        DNSName = server;
+        this.port = port;
 
 
     }
@@ -71,19 +75,37 @@ public class ChatClient {
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
-        // PREENCHER AQUI com código que envia a mensagem ao servidor
-
-
-
+        chatArea.append(message + '\n');
     }
 
 
     // Método principal do objecto
-    public void run() throws IOException {
+    public void run(boolean bool) throws IOException {
         // PREENCHER AQUI
+        // PREENCHER AQUI com código que envia a mensagem ao servidor
 
-
-
+        String sentence;
+        String response;
+        InputStream input = bool ? System.in : new ByteArrayInputStream(chatBox.getText().getBytes());
+        BufferedReader inFromUser =
+                new BufferedReader(new InputStreamReader(input));
+        Socket clientSocket = new Socket(DNSName, port);
+        DataOutputStream outToServer =
+                new DataOutputStream(clientSocket.getOutputStream());
+        BufferedReader inFromServer =
+                new BufferedReader(new
+                        InputStreamReader(clientSocket.getInputStream()));
+        Iterator<String> it = inFromUser.lines().iterator();
+        while(it.hasNext()) {
+            sentence = it.next();
+            outToServer.writeBytes(sentence + '\n');
+            System.out.println("FROM CLIENT: " + sentence);
+            newMessage(sentence);
+            response = inFromServer.readLine();
+            System.out.println("FROM SERVER: " + response);
+            newMessage(response);
+        }
+        clientSocket.close();
     }
 
 
@@ -91,7 +113,7 @@ public class ChatClient {
     // * NÃO MODIFICAR *
     public static void main(String[] args) throws IOException {
         ChatClient client = new ChatClient(args[0], Integer.parseInt(args[1]));
-        client.run();
+        client.run(true); // true if the input is from the terminal, otherwise is false
     }
 
 }

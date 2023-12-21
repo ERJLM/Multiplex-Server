@@ -84,6 +84,7 @@ public class ChatServer
                             sc = (SocketChannel)key.channel();
                             boolean ok = processInput( sc );
 
+
                             // If the connection is dead, remove it from the selector
                             // and close it
                             if (!ok) {
@@ -108,7 +109,7 @@ public class ChatServer
                                 sc.close();
                             } catch( IOException ie2 ) { System.out.println( ie2 ); }
 
-                            System.out.println( "Closed "+sc );
+                            System.out.println( "Closed11 "+sc );
                         }
                     }
                 }
@@ -123,6 +124,8 @@ public class ChatServer
 
 
     // Just read the message from the socket and send it to stdout
+
+    //Tratar a mensagem recebida pelo cliente aqui
     static private boolean processInput( SocketChannel sc ) throws IOException {
         // Read the message to the buffer
         buffer.clear();
@@ -135,9 +138,24 @@ public class ChatServer
         }
 
         // Decode and print the message to stdout
-        String message = decoder.decode(buffer).toString();
-        System.out.print( message );
-
-        return true;
+        String clientMessage = decoder.decode(buffer).toString();
+        String response;
+        if(clientMessage.equals("bye\n")){
+            response = "BYE\n";
+        }
+        else if (clientMessage.charAt(0) != '/') response = "MESSAGE " + clientMessage;
+        else{
+            response = "OK\n";
+        }
+        try {
+            ByteBuffer responseBuffer = ByteBuffer.wrap(response.getBytes());
+            while (responseBuffer.hasRemaining()) {
+                sc.write(responseBuffer);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.print( response );
+        return !response.equals("BYE\n");
     }
 }
