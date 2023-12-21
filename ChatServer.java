@@ -13,7 +13,9 @@ public class ChatServer
     // Decoder for incoming text -- assume UTF-8
     static private final Charset charset = Charset.forName("UTF8");
     static private final CharsetDecoder decoder = charset.newDecoder();
+    static private HashMap<String, String> userStates = new HashMap<>(); // Map that has usernames as keys and states as values
 
+    static private HashMap<Integer, String> userPorts = new HashMap<>(); // Map that has usernames as keys and ports as values
 
     static public void main( String args[] ) throws Exception {
         // Parse port from command line
@@ -65,6 +67,8 @@ public class ChatServer
                         // the Selector so we can listen for input on it
                         Socket s = ss.accept();
                         System.out.println( "Got connection from "+s );
+
+
 
                         // Make sure to make it non-blocking, so we can use a selector
                         // on it.
@@ -143,9 +147,17 @@ public class ChatServer
         if(clientMessage.equals("bye\n")){
             response = "BYE\n";
         }
-        else if (clientMessage.charAt(0) != '/') response = "MESSAGE " + clientMessage;
+        else if (clientMessage.startsWith("/nick ")){
+            String name = clientMessage.replaceAll("/nick ", "");
+            if(userStates.containsKey(name)) response = "ERROR\n";
+            else {
+                userStates.put(name, "outside");
+                System.out.println(userStates.keySet());
+                response = "OK\n";
+            }
+        }
         else{
-            response = "OK\n";
+            response = "MESSAGE " + clientMessage;
         }
         try {
             ByteBuffer responseBuffer = ByteBuffer.wrap(response.getBytes());
