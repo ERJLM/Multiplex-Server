@@ -15,7 +15,10 @@ public class ChatServer
     static private final CharsetDecoder decoder = charset.newDecoder();
     static private HashMap<String, String> userStates = new HashMap<>(); // Map that has usernames as keys and states as values
 
-    static private HashMap<Integer, String> userPorts = new HashMap<>(); // Map that has usernames as keys and ports as values
+
+    static private HashMap<Integer, String> userPort = new HashMap<>(); // Map that has usernames as keys and ports as values
+
+    static private HashMap<String, ArrayList<String>> rooms = new HashMap<>(); // Map that has rooms as keys and a list of usernames as values
 
     static public void main( String args[] ) throws Exception {
         // Parse port from command line
@@ -97,6 +100,10 @@ public class ChatServer
                                 Socket s = null;
                                 try {
                                     s = sc.socket();
+                                    int Userport = s.getPort();
+                                    String name = userPort.get(Userport);
+                                    userStates.remove(name);
+                                    userPort.remove(Userport);
                                     System.out.println( "Closing connection to "+s );
                                     s.close();
                                 } catch( IOException ie ) {
@@ -133,32 +140,35 @@ public class ChatServer
     static private boolean processInput( SocketChannel sc ) throws IOException {
         // Read the message to the buffer
         buffer.clear();
-        sc.read( buffer );
+        int bytesRead = sc.read(buffer);
         buffer.flip();
 
         // If no data, close the connection
-        if (buffer.limit()==0) {
+        if (bytesRead == -1 && buffer.limit()==0) {
             return false;
         }
 
         // Decode and print the message to stdout
         String clientMessage = decoder.decode(buffer).toString();
-        String response;
+        System.out.println("message: " + clientMessage);
+        String response = "ERROR\n"; //default response
+
         if(clientMessage.equals("bye\n")){
             response = "BYE\n";
         }
+        else if(!clientMessage.startsWith("/")){
+            response = message(sc, clientMessage);
+        }
         else if (clientMessage.startsWith("/nick ")){
-            String name = clientMessage.replaceAll("/nick ", "");
-            if(userStates.containsKey(name)) response = "ERROR\n";
-            else {
-                userStates.put(name, "outside");
-                System.out.println(userStates.keySet());
-                response = "OK\n";
-            }
+            response = nick(sc, clientMessage);
         }
-        else{
-            response = "MESSAGE " + clientMessage;
+        else if (clientMessage.startsWith("/join ")){
+            response = join(sc, clientMessage);
         }
+        else if (clientMessage.startsWith("/leave ")){
+            response = leave(sc, clientMessage);
+        }
+
         try {
             ByteBuffer responseBuffer = ByteBuffer.wrap(response.getBytes());
             while (responseBuffer.hasRemaining()) {
@@ -169,5 +179,63 @@ public class ChatServer
         }
         System.out.print( response );
         return !response.equals("BYE\n");
+    }
+
+    private static String leave(SocketChannel sc, String clientMessage) {
+        int port = sc.socket().getPort();
+        if (!userPort.containsKey(port)) return "ERROR\n"; //user doesn't have a name
+        String name = userPort.get(port);
+        if (!userStates.get(name).equals("inside")) return "ERROR\n"; //user doesn't have a room
+
+        return "OK\n";
+    }
+
+    private static String join(SocketChannel sc, String clientMessage) {
+        int port = sc.socket().getPort();
+        if (!userPort.containsKey(port)) return "ERROR\n"; //user doesn't have a name
+        String roomName = clientMessage.replaceAll("/join ", "");
+        String name = userPort.get(port);
+        String response;
+        if(!userStates.containsKey(name)) response = "ERROR\n";
+        else {
+            if(rooms.containsKey(roomName)){
+                rooms.get(roomName).add(name);
+            }
+            else rooms.put(name, new ArrayList<>());
+            userStates.put(name, "inside");
+            userPort.put(port, name);
+            System.out.println(userStates.keySet());
+            System.out.println(userPort.keySet());
+            response = "OK\n";
+        }
+        return response;
+    }
+
+    static private String nick(SocketChannel sc, String clientMessage){
+        String name = clientMessage.replaceAll("/nick ", "");
+        String response;
+        if(userStates.containsKey(name)) response = "ERROR\n";
+        else {
+            int port = sc.socket().getPort();
+            if(userPort.containsKey(port)){
+                userStates.remove(userPort.get(port));
+                userPort.remove(port);
+            }
+            userStates.put(name, "outside");
+            userPort.put(port, name);
+            System.out.println(userStates.keySet());
+            System.out.println(userPort.keySet());
+            response = "OK\n";
+        }
+        return response;
+    }
+
+    static private String message(SocketChannel sc, String clientMessage){
+        int port = sc.socket().getPort();
+        if (!userPort.containsKey(port)) return "ERROR\n"; //user doesn't have a name
+        String name = userPort.get(port);
+        if (!userStates.get(name).equals("inside")) return "ERROR\n"; //user doesn't have a room
+
+        return "MESSAGE " + name.strip() + " " + clientMessage;
     }
 }

@@ -6,6 +6,7 @@ import java.awt.event.*;
 import javax.swing.*;
 
 
+
 public class ChatClient {
 
     // Variáveis relacionadas com a interface gráfica --- * NÃO MODIFICAR *
@@ -86,7 +87,8 @@ public class ChatClient {
 
         String sentence;
         String response;
-        InputStream input = bool ? System.in : new ByteArrayInputStream(chatBox.getText().getBytes());
+        String text = chatBox.getText();
+        InputStream input = bool ? System.in : new ByteArrayInputStream(text.getBytes("UTF-8"));
         BufferedReader inFromUser =
                 new BufferedReader(new InputStreamReader(input));
         Socket clientSocket = new Socket(DNSName, port);
@@ -105,7 +107,8 @@ public class ChatClient {
             System.out.println("FROM SERVER: " + response);
             newMessage(response);
         }
-        clientSocket.close();
+
+       clientSocket.close();
     }
 
 
@@ -116,4 +119,31 @@ public class ChatClient {
         client.run(true); // true if the input is from the terminal, otherwise is false
     }
 
+}
+
+
+class jtextfieldinputstream extends InputStream {
+    private byte[] contents = new byte[0];
+    private int pointer = 0;
+
+    public jtextfieldinputstream(final JTextField text) {
+
+        text.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                if (e.getKeyChar() == '\n') {
+                    contents = text.getText().getBytes();
+                    pointer = 0;
+                    text.setText("");
+                }
+                super.keyReleased(e);
+            }
+        });
+    }
+
+    @Override
+    public int read() throws IOException {
+        if (contents == null || pointer >= contents.length) return -1;
+        return this.contents[pointer++] & 0xFF;
+    }
 }
