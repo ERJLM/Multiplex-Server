@@ -140,11 +140,11 @@ public class ChatServer
     static private boolean processInput( SocketChannel sc ) throws IOException {
         // Read the message to the buffer
         buffer.clear();
-        int bytesRead = sc.read(buffer);
+        sc.read(buffer);
         buffer.flip();
 
         // If no data, close the connection
-        if (bytesRead == -1 && buffer.limit()==0) {
+        if ( buffer.limit()==0) {
             return false;
         }
 
