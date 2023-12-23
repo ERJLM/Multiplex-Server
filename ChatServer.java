@@ -11,7 +11,7 @@ public class ChatServer
     static private final ByteBuffer buffer = ByteBuffer.allocate( 16384 );
 
     // Decoder for incoming text -- assume UTF-8
-    static private final Charset charset = Charset.forName("UTF8");
+    static private final Charset charset = StandardCharsets.UTF_8;
     static private final CharsetDecoder decoder = charset.newDecoder();
     static private HashMap<String, String> userStates = new HashMap<>(); // Map that has usernames as keys and states as values
 
@@ -55,9 +55,11 @@ public class ChatServer
                     continue;
                 }
 
+
                 // Get the keys corresponding to the activity that has been
                 // detected, and process them one by one
                 Set<SelectionKey> keys = selector.selectedKeys();
+
                 Iterator<SelectionKey> it = keys.iterator();
                 while (it.hasNext()) {
                     // Get a key representing one of bits of I/O activity
@@ -89,6 +91,7 @@ public class ChatServer
 
                             // It's incoming data on a connection -- process it
                             sc = (SocketChannel)key.channel();
+
                             boolean ok = processInput( sc );
 
 
@@ -145,9 +148,10 @@ public class ChatServer
 
         // If no data, close the connection
         if ( buffer.limit()==0) {
+            System.out.println("buffer limit ");
             return false;
         }
-
+        System.out.println("buffer decoder ");
         // Decode and print the message to stdout
         String clientMessage = decoder.decode(buffer).toString();
         System.out.println("message: " + clientMessage);
@@ -175,6 +179,7 @@ public class ChatServer
                 sc.write(responseBuffer);
             }
         } catch (IOException e) {
+            System.out.println(e.getMessage());
             throw new RuntimeException(e);
         }
         System.out.print( response );
@@ -192,11 +197,17 @@ public class ChatServer
 
     private static String join(SocketChannel sc, String clientMessage) {
         int port = sc.socket().getPort();
-        if (!userPort.containsKey(port)) return "ERROR\n"; //user doesn't have a name
+        if (!userPort.containsKey(port)){
+            System.out.println("Debuugg000");
+            return "ERROR\n"; //user doesn't have a name
+        }
         String roomName = clientMessage.replaceAll("/join ", "");
         String name = userPort.get(port);
         String response;
-        if(!userStates.containsKey(name)) response = "ERROR\n";
+        if(!userStates.containsKey(name)){
+            System.out.println("Debuugg join userStates doesn't contains name");
+            response = "ERROR\n";
+        }
         else {
             if(rooms.containsKey(roomName)){
                 rooms.get(roomName).add(name);
@@ -213,21 +224,29 @@ public class ChatServer
 
     static private String nick(SocketChannel sc, String clientMessage){
         String name = clientMessage.replaceAll("/nick ", "");
-        String response;
-        if(userStates.containsKey(name)) response = "ERROR\n";
-        else {
-            int port = sc.socket().getPort();
-            if(userPort.containsKey(port)){
-                userStates.remove(userPort.get(port));
-                userPort.remove(port);
-            }
-            userStates.put(name, "outside");
-            userPort.put(port, name);
-            System.out.println(userStates.keySet());
-            System.out.println(userPort.keySet());
-            response = "OK\n";
+        int port = sc.socket().getPort();
+        String oldName = userPort.get(port);
+        String responseToUser = "OK\n"; //Default response
+        if(userStates.containsKey(name) && !userPort.get(port).equals(name)){
+            System.out.println("Debuugg Nickname is not available");
+            //System.out.println(userStates.keySet());
+            responseToUser = "ERROR\n";
         }
-        return response;
+        else if(userPort.containsKey(port)){
+            String state = userStates.get(name);
+            userStates.remove(userPort.get(port));
+            if(state.equals("outside")) userStates.put(name, "outside");
+            else{
+                String responseToEveryone = name + " mudou de nome para " + oldName;
+            }
+
+            //System.out.println(userStates.keySet());
+            //System.out.println(userPort.keySet());
+            responseToUser = "OK\n";
+        }
+        userPort.put(port, name);
+        userStates.put(name, "outside");
+        return responseToUser;
     }
 
     static private String message(SocketChannel sc, String clientMessage){
@@ -236,6 +255,6 @@ public class ChatServer
         String name = userPort.get(port);
         if (!userStates.get(name).equals("inside")) return "ERROR\n"; //user doesn't have a room
 
-        return "MESSAGE " + name.strip() + " " + clientMessage;
+        return  name.strip() + ": " + clientMessage;
     }
 }
