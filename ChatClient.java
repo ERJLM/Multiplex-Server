@@ -1,10 +1,8 @@
 import java.io.*;
 import java.net.*;
-import java.util.*;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-
 
 
 public class ChatClient {
@@ -13,16 +11,16 @@ public class ChatClient {
     JFrame frame = new JFrame("Chat Client");
     private JTextField chatBox = new JTextField();
     private JTextArea chatArea = new JTextArea();
-
     // --- Fim das variáveis relacionadas coma interface gráfica
 
     // Se for necessário adicionar variáveis ao objecto ChatClient, devem
     // ser colocadas aqui
-    private String DNSName;
+
+    private String server;
+
     private int port;
 
-
-
+    private DataOutputStream outToServer;
 
     // Método a usar para acrescentar uma string à caixa de texto
     // * NÃO MODIFICAR *
@@ -50,7 +48,7 @@ public class ChatClient {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    run(false);
+                    newMessage(chatBox.getText());
                 } catch (IOException ex) {
                 } finally {
                     chatBox.setText("");
@@ -66,9 +64,9 @@ public class ChatClient {
 
         // Se for necessário adicionar código de inicialização ao
         // construtor, deve ser colocado aqui
-        DNSName = server;
-        this.port = port;
 
+        this.server = server;
+        this.port = port;
 
     }
 
@@ -76,39 +74,88 @@ public class ChatClient {
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
-        chatArea.append(message + '\n');
+        // PREENCHER AQUI com código que envia a mensagem ao servidor
+        outToServer.write(normalizeOutput(message).getBytes("UTF-8"));
     }
 
+    private String normalizeOutput(String message)
+    {
+        if(message.startsWith("/")&&!isCommand(message))
+            message = "/"+message;
+        message += '\n';
+        return message;
+    }
+
+    private boolean isCommand(String message)
+    {
+        return message.startsWith("/nick ")||message.startsWith("/join ")
+                ||message.startsWith("/priv ")||message.equals("/leave")
+                ||message.equals("/bye");
+    }
+
+    private String normalizeResponse(String message)
+    {
+        String response = "";
+        if(message.startsWith("ERROR"))
+            response = "ERRO";
+        else if(message.startsWith("JOINED"))
+            response = message.substring(message.indexOf(" ")+1)+" entrou na sala";
+        else if(message.startsWith("LEFT"))
+            response = message.substring(message.indexOf(" ")+1)+" saiu da sala";
+        else if(message.startsWith("MESSAGE"))
+        {
+            message = message.substring(message.indexOf(" ")+1);
+            int space = message.indexOf(" ");
+            String name = message.substring(0,space);
+            response = name+": "+message.substring(space+1);
+        }
+        else if(message.startsWith("PRIVATE"))
+        {
+            message = message.substring(message.indexOf(" ")+1);
+            int space = message.indexOf(" ");
+            String name = message.substring(0,space);
+            response = "[MENSAGEM PRIVADA] "+name+": "+message.substring(space+1);
+        }
+        else if(message.startsWith("NEWNICK"))
+        {
+            message = message.substring(message.indexOf(" ")+1);
+            int space = message.indexOf(" ");
+            String oldName = message.substring(0,space);
+            response = oldName+" mudou de nome para "+message.substring(space+1);
+        }
+        else if(message.startsWith("BYE"))
+            response = "Tchau!";
+        else response = message;
+
+        response += "\n";
+        return response;
+    }
 
     // Método principal do objecto
-    public void run(boolean bool) throws IOException {
+    public void run() throws IOException{
         // PREENCHER AQUI
-        // PREENCHER AQUI com código que envia a mensagem ao servidor
-
-        String sentence;
-        String response;
-        String text = chatBox.getText();
-        InputStream input = bool ? System.in : new ByteArrayInputStream(text.getBytes("UTF-8"));
-        BufferedReader inFromUser =
-                new BufferedReader(new InputStreamReader(input));
-        Socket clientSocket = new Socket(DNSName, port);
-        DataOutputStream outToServer =
-                new DataOutputStream(clientSocket.getOutputStream());
-        BufferedReader inFromServer =
-                new BufferedReader(new
-                        InputStreamReader(clientSocket.getInputStream()));
-        Iterator<String> it = inFromUser.lines().iterator();
-        while(it.hasNext()) {
-            sentence = it.next();
-            outToServer.writeBytes(sentence + '\n');
-            System.out.println("FROM CLIENT: " + sentence);
-            newMessage(sentence);
-            response = inFromServer.readLine();
-            System.out.println("FROM SERVER: " + response);
-            newMessage(response);
+        Socket clientSocket = null;
+        try {
+            clientSocket =  new Socket(server, port);
+            outToServer = new DataOutputStream(clientSocket.getOutputStream());
+            InputStream inputStream = clientSocket.getInputStream();
+            InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+            BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+            String line;
+            while ((line = bufferedReader.readLine())!=null) {
+                printMessage(normalizeResponse(line));
+            }
+            clientSocket.close();
         }
-
-       clientSocket.close();
+        catch (Exception e)
+        {
+            System.out.println(e.getMessage());
+        }
+        finally {
+            if(clientSocket!=null&&!clientSocket.isClosed())
+                clientSocket.close();
+        }
+        System.exit(0);
     }
 
 
@@ -116,34 +163,7 @@ public class ChatClient {
     // * NÃO MODIFICAR *
     public static void main(String[] args) throws IOException {
         ChatClient client = new ChatClient(args[0], Integer.parseInt(args[1]));
-        client.run(true); // true if the input is from the terminal, otherwise is false
+        client.run();
     }
 
-}
-
-
-class jtextfieldinputstream extends InputStream {
-    private byte[] contents = new byte[0];
-    private int pointer = 0;
-
-    public jtextfieldinputstream(final JTextField text) {
-
-        text.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
-                if (e.getKeyChar() == '\n') {
-                    contents = text.getText().getBytes();
-                    pointer = 0;
-                    text.setText("");
-                }
-                super.keyReleased(e);
-            }
-        });
-    }
-
-    @Override
-    public int read() throws IOException {
-        if (contents == null || pointer >= contents.length) return -1;
-        return this.contents[pointer++] & 0xFF;
-    }
 }
