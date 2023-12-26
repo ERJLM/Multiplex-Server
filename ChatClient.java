@@ -98,37 +98,58 @@ public class ChatClient {
         String response = "";
         if(message.startsWith("ERROR"))
             response = "ERRO";
+
         else if(message.startsWith("JOINED"))
-            response = message.substring(message.indexOf(" ")+1)+" entrou na sala";
+            response = joinedResponse(message);
+
         else if(message.startsWith("LEFT"))
-            response = message.substring(message.indexOf(" ")+1)+" saiu da sala";
+            response = leftResponse(message);
+
         else if(message.startsWith("MESSAGE"))
-        {
-            message = message.substring(message.indexOf(" ")+1);
-            int space = message.indexOf(" ");
-            String name = message.substring(0,space);
-            response = name+": "+message.substring(space+1);
-        }
+            response = messageResponse(message);
+
         else if(message.startsWith("PRIVATE"))
-        {
-            message = message.substring(message.indexOf(" ")+1);
-            int space = message.indexOf(" ");
-            String name = message.substring(0,space);
-            response = "[MENSAGEM PRIVADA] "+name+": "+message.substring(space+1);
-        }
+            response = privateResponse(message);
+
         else if(message.startsWith("NEWNICK"))
-        {
-            message = message.substring(message.indexOf(" ")+1);
-            int space = message.indexOf(" ");
-            String oldName = message.substring(0,space);
-            response = oldName+" mudou de nome para "+message.substring(space+1);
-        }
+            response = newNickResponse(message);
+
         else if(message.startsWith("BYE"))
             response = "Tchau!";
+
         else response = message;
 
         response += "\n";
         return response;
+    }
+
+    private String joinedResponse(String message) {
+        return message.substring(message.indexOf(" ")+1)+" entrou na sala";
+    }
+
+    private String leftResponse(String message) {
+        return message.substring(message.indexOf(" ")+1)+" saiu da sala";
+    }
+
+    private String messageResponse(String message) {
+        message = message.substring(message.indexOf(" ")+1);
+        int space = message.indexOf(" ");
+        String name = message.substring(0,space);
+        return name+": "+message.substring(space+1);
+    }
+
+    private String privateResponse(String message) {
+        message = message.substring(message.indexOf(" ")+1);
+        int space = message.indexOf(" ");
+        String name = message.substring(0,space);
+        return "[MENSAGEM PRIVADA] "+name+": "+message.substring(space+1);
+    }
+
+    private String newNickResponse(String message) {
+        message = message.substring(message.indexOf(" ")+1);
+        int space = message.indexOf(" ");
+        String oldName = message.substring(0,space);
+        return oldName+" mudou de nome para "+message.substring(space+1);
     }
 
     // Método principal do objecto
