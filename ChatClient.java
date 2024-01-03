@@ -176,7 +176,7 @@ public class ChatClient {
             if(clientSocket!=null&&!clientSocket.isClosed())
                 clientSocket.close();
         }
-        System.exit(0);
+        //System.exit(0);
     }
 
 
