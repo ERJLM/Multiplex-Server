@@ -215,6 +215,7 @@ public class ChatServer
 
         for(String content:message.split(System.lineSeparator()))
         {
+            content = dropCtrlD(content);
             System.out.println(content);
 
             //Get current client data
@@ -237,6 +238,14 @@ public class ChatServer
         return true;
     }
 
+    static String dropCtrlD(String message)
+    {
+        String ans = "";
+        for(int i=0;i<message.length();++i)
+            if(message.charAt(i)!=4)
+                ans += message.charAt(i);
+        return ans;
+    }
 
     static ClientData solveInit(SocketChannel sc, String message, ClientData clientData) throws IOException
     {
