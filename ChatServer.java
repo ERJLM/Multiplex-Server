@@ -242,14 +242,8 @@ public class ChatServer
     {
         String ans = "";
         for(int i=0;i<message.length();++i)
-        {
-            int c = message.charAt(i);
-            System.out.println(c+"-");
-
             if(message.charAt(i)!=4&&message.charAt(i)!=5)
                 ans += message.charAt(i);
-        }
-
         return ans;
     }
 
